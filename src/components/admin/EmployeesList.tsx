@@ -22,15 +22,51 @@ function EditEmployeeModal({ employee, isOpen, onClose, onSave }: EditModalProps
     department: employee.department || '',
     position: employee.position || '',
     salary: employee.salary?.toString() || '',
-    password: ''
+    password: '',
+    avatar: employee.avatar || ''
   });
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(employee.avatar || null);
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) { // 5MB limit
+        alert('Размер файла не должен превышать 5MB');
+        return;
+      }
+      
+      if (!file.type.startsWith('image/')) {
+        alert('Можно загружать только изображения');
+        return;
+      }
+      
+      setAvatarFile(file);
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setAvatarPreview(e.target?.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const removeAvatar = () => {
+    setAvatarFile(null);
+    setAvatarPreview(null);
+    setFormData(prev => ({ ...prev, avatar: '' }));
+  };
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
+    let avatarUrl = formData.avatar;
+    
+    // Если загружен новый аватар, создаем URL для него
+    if (avatarFile) {
+      avatarUrl = URL.createObjectURL(avatarFile);
+    }
     const updateData: Partial<User> = {
       name: formData.name,
       email: formData.email,
@@ -39,7 +75,8 @@ function EditEmployeeModal({ employee, isOpen, onClose, onSave }: EditModalProps
       role: formData.role,
       department: formData.department,
       position: formData.position,
-      salary: formData.salary ? parseInt(formData.salary) : undefined
+      salary: formData.salary ? parseInt(formData.salary) : undefined,
+      avatar: avatarUrl
     };
 
     // Добавляем пароль в обновление, если он был изменен
@@ -75,6 +112,56 @@ function EditEmployeeModal({ employee, isOpen, onClose, onSave }: EditModalProps
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          {/* Avatar Upload */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Фото профиля
+            </label>
+            <div className="flex items-center space-x-4">
+              <div className="relative">
+                {avatarPreview ? (
+                  <div className="relative">
+                    <img
+                      src={avatarPreview}
+                      alt="Предпросмотр аватара"
+                      className="w-20 h-20 rounded-full object-cover border-2 border-gray-200"
+                    />
+                    <button
+                      type="button"
+                      onClick={removeAvatar}
+                      className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition-colors"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="w-20 h-20 rounded-full bg-gray-200 flex items-center justify-center border-2 border-dashed border-gray-300">
+                    <Upload className="h-8 w-8 text-gray-400" />
+                  </div>
+                )}
+              </div>
+              <div>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleAvatarChange}
+                  className="hidden"
+                  id="avatar-edit-upload"
+                />
+                <label
+                  htmlFor="avatar-edit-upload"
+                  className="cursor-pointer inline-flex items-center px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition-colors"
+                >
+                  <Upload className="h-4 w-4 mr-2" />
+                  Изменить фото
+                </label>
+                <p className="text-xs text-gray-500 mt-1">
+                  JPG, PNG до 5MB
+                </p>
+              </div>
+            </div>
+          </div>
+
           {/* Имя и Email */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>

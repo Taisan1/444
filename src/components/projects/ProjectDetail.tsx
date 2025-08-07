@@ -193,6 +193,26 @@ export function ProjectDetail({ projectId, onBack }: ProjectDetailProps) {
 
   const project = projects.find(p => p.id === projectId);
 
+  // Функция для проверки прав доступа к проекту
+  const canInteractWithProject = (): boolean => {
+    if (!user || !project) return false;
+    
+    // Админы могут взаимодействовать со всеми проектами
+    if (user.role === 'admin') return true;
+    
+    // Менеджеры могут взаимодействовать с проектами, где они назначены менеджерами
+    if (project.manager?.id === user.id) return true;
+    
+    // Фотографы могут взаимодействовать с проектами, где они назначены фотографами
+    if (user.role === 'photographer' && project.photographers.some(p => p.id === user.id)) return true;
+    
+    // Дизайнеры могут взаимодействовать с проектами, где они назначены дизайнерами
+    if (user.role === 'designer' && project.designers.some(d => d.id === user.id)) return true;
+    
+    return false;
+  };
+
+  const canEdit = canInteractWithProject();
   if (!project) {
     return (
       <div className="p-6">
@@ -418,10 +438,17 @@ export function ProjectDetail({ projectId, onBack }: ProjectDetailProps) {
               </Button>
             </>
           ) : (
-            <Button onClick={handleEdit}>
-              <Edit className="h-4 w-4 mr-2" />
-              Редактировать
-            </Button>
+            canEdit && (
+              <Button onClick={handleEdit}>
+                <Edit className="h-4 w-4 mr-2" />
+                Редактировать
+              </Button>
+            )
+          )}
+          {!canEdit && (
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg px-3 py-2">
+              <span className="text-sm text-yellow-800">Только просмотр</span>
+            </div>
           )}
         </div>
       </div>
@@ -579,10 +606,12 @@ export function ProjectDetail({ projectId, onBack }: ProjectDetailProps) {
             <CardHeader>
               <div className="flex items-center justify-between">
                 <CardTitle>Файлы проекта</CardTitle>
-                <Button size="sm" onClick={() => setShowUploadModal(true)}>
-                  <Upload className="h-4 w-4 mr-2" />
-                  Загрузить файлы
-                </Button>
+                {canEdit && (
+                  <Button size="sm" onClick={() => setShowUploadModal(true)}>
+                    <Upload className="h-4 w-4 mr-2" />
+                    Загрузить файлы
+                  </Button>
+                )}
               </div>
             </CardHeader>
             <CardContent>
@@ -653,14 +682,16 @@ export function ProjectDetail({ projectId, onBack }: ProjectDetailProps) {
                         <Download className="h-4 w-4 mr-1" />
                         Скачать
                       </Button>
-                      <Button 
-                        size="sm" 
-                        variant="outline" 
-                        className="text-red-600 hover:text-red-700"
-                        onClick={() => handleFileDelete(file.id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      {canEdit && (
+                        <Button 
+                          size="sm" 
+                          variant="outline" 
+                          className="text-red-600 hover:text-red-700"
+                          onClick={() => handleFileDelete(file.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
                     </div>
                   </div>
                   );
@@ -669,14 +700,16 @@ export function ProjectDetail({ projectId, onBack }: ProjectDetailProps) {
                   <div className="text-center py-8">
                     <Upload className="h-12 w-12 text-gray-300 mx-auto mb-3" />
                     <p className="text-gray-500 mb-3">Файлы еще не загружены</p>
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      onClick={() => setShowUploadModal(true)}
-                    >
-                      <Upload className="h-4 w-4 mr-2" />
-                      Загрузить первые файлы
-                    </Button>
+                    {canEdit && (
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => setShowUploadModal(true)}
+                      >
+                        <Upload className="h-4 w-4 mr-2" />
+                        Загрузить первые файлы
+                      </Button>
+                    )}
                   </div>
                 )}
               </div>
@@ -741,12 +774,14 @@ export function ProjectDetail({ projectId, onBack }: ProjectDetailProps) {
     </div>
 
       {/* File Upload Modal */}
-      <FileUploadModal
-        isOpen={showUploadModal}
-        onClose={() => setShowUploadModal(false)}
-        onUpload={handleFileUpload}
-        projectId={projectId}
-      />
+      {canEdit && (
+        <FileUploadModal
+          isOpen={showUploadModal}
+          onClose={() => setShowUploadModal(false)}
+          onUpload={handleFileUpload}
+          projectId={projectId}
+        />
+      )}
     </>
   );
 }

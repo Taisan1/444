@@ -22,6 +22,27 @@ export function UploadArea() {
 
   const selectedProjectData = projects.find(p => p.id === selectedProject);
 
+  // Функция для проверки прав доступа к проекту
+  const canInteractWithProject = (project: Project): boolean => {
+    if (!user) return false;
+    
+    // Админы могут взаимодействовать со всеми проектами
+    if (user.role === 'admin') return true;
+    
+    // Менеджеры могут взаимодействовать с проектами, где они назначены менеджерами
+    if (project.manager?.id === user.id) return true;
+    
+    // Фотографы могут взаимодействовать с проектами, где они назначены фотографами
+    if (user.role === 'photographer' && project.photographers.some(p => p.id === user.id)) return true;
+    
+    // Дизайнеры могут взаимодействовать с проектами, где они назначены дизайнерами
+    if (user.role === 'designer' && project.designers.some(d => d.id === user.id)) return true;
+    
+    return false;
+  };
+
+  // Фильтруем проекты для выбора - показываем только те, с которыми пользователь может взаимодействовать
+  const availableProjects = projects.filter(project => canInteractWithProject(project));
   const handleDrag = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -48,6 +69,11 @@ export function UploadArea() {
       return;
     }
 
+    const project = projects.find(p => p.id === selectedProject);
+    if (!project || !canInteractWithProject(project)) {
+      alert('У вас нет прав для загрузки файлов в этот проект');
+      return;
+    }
     const newFiles: UploadedFile[] = fileList.map(file => ({
       id: Math.random().toString(36).substr(2, 9),
       name: file.name,
@@ -162,12 +188,17 @@ export function UploadArea() {
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           >
             <option value="">Выберите проект...</option>
-            {projects.map(project => (
+            {availableProjects.map(project => (
               <option key={project.id} value={project.id}>
                 {project.title}
               </option>
             ))}
           </select>
+          {projects.length > availableProjects.length && (
+            <p className="text-sm text-gray-500 mt-2">
+              Показаны только проекты, в которых вы участвуете. Всего проектов: {projects.length}
+            </p>
+          )}
         </CardContent>
       </Card>
 

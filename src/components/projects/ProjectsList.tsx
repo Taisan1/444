@@ -258,6 +258,24 @@ export function ProjectsList({ onProjectSelect }: { onProjectSelect?: (projectId
   const [statusFilter, setStatusFilter] = useState('all');
   const [showCreateModal, setShowCreateModal] = useState(false);
 
+  // Функция для проверки прав доступа к проекту
+  const canInteractWithProject = (project: Project): boolean => {
+    if (!user) return false;
+    
+    // Админы могут взаимодействовать со всеми проектами
+    if (user.role === 'admin') return true;
+    
+    // Менеджеры могут взаимодействовать с проектами, где они назначены менеджерами
+    if (project.manager?.id === user.id) return true;
+    
+    // Фотографы могут взаимодействовать с проектами, где они назначены фотографами
+    if (user.role === 'photographer' && project.photographers.some(p => p.id === user.id)) return true;
+    
+    // Дизайнеры могут взаимодействовать с проектами, где они назначены дизайнерами
+    if (user.role === 'designer' && project.designers.some(d => d.id === user.id)) return true;
+    
+    return false;
+  };
 
   const getStatusInfo = (status: string) => {
     const statusMap = {
@@ -274,13 +292,7 @@ export function ProjectsList({ onProjectSelect }: { onProjectSelect?: (projectId
                          project.description.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === 'all' || project.status === statusFilter;
     
-    // Фильтрация по роли пользователя
-    if (user?.role === 'photographer') {
-      return matchesSearch && matchesStatus && project.photographers.some(p => p.id === user.id);
-    } else if (user?.role === 'designer') {
-      return matchesSearch && matchesStatus && project.designers.some(d => d.id === user.id);
-    }
-    
+    // Все пользователи видят все проекты, но взаимодействовать могут только участники
     return matchesSearch && matchesStatus;
   });
 
@@ -344,13 +356,24 @@ export function ProjectsList({ onProjectSelect }: { onProjectSelect?: (projectId
           return (
             <Card 
               key={project.id} 
-              className="hover:shadow-lg transition-all duration-200 cursor-pointer"
-              onClick={() => onProjectSelect?.(project.id)}
+              className={`transition-all duration-200 ${
+                canInteractWithProject(project) 
+                  ? 'hover:shadow-lg cursor-pointer' 
+                  : 'opacity-75 cursor-not-allowed'
+              }`}
+              onClick={() => canInteractWithProject(project) && onProjectSelect?.(project.id)}
             >
               <CardHeader>
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
-                    <CardTitle className="text-lg mb-2">{project.title}</CardTitle>
+                    <div className="flex items-center space-x-2 mb-2">
+                      <CardTitle className="text-lg">{project.title}</CardTitle>
+                      {!canInteractWithProject(project) && (
+                        <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full">
+                          Только просмотр
+                        </span>
+                      )}
+                    </div>
                     <p className="text-sm font-medium text-blue-600 mb-1">{project.albumType}</p>
                     <p className="text-gray-600 text-sm">{project.description}</p>
                   </div>
@@ -412,6 +435,16 @@ export function ProjectsList({ onProjectSelect }: { onProjectSelect?: (projectId
                   </div>
                 </div>
               </CardContent>
+              
+              {!canInteractWithProject(project) && (
+                <div className="px-6 pb-4">
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                    <p className="text-sm text-yellow-800">
+                      <strong>Ограниченный доступ:</strong> Вы можете просматривать этот проект, но не можете его редактировать или загружать файлы.
+                    </p>
+                  </div>
+                </div>
+              )}
             </Card>
           );
         })}
